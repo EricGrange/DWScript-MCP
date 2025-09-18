@@ -1,2 +1,21 @@
 # DWScript-MCP
-Sample MCP MCP (Model Context Protocol) server for DWScript
+
+Sample MCP (Model Context Protocol) server for [DWScript][(https://github.com/EricGrange/DWScript)
+
+This project is a basic MCP server exposing a tool that returns current local time.
+
+Tested only with [LM Studio](https://lmstudio.ai/) so far
+
+Usage:
+* place server.dws wherever you want in your website, and the .pas units either alongside it or in your .lib directory
+* add an entry in mcp.json of LM Studio like 
+
+```
+{
+  "mcpServers": {
+    "dwscript-local-time": {
+      "url": "http://localhost:888/mcp/server.dws"
+    }
+  }
+}
+```

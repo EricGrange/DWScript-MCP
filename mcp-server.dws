@@ -57,15 +57,27 @@ type
       end;
       class function Call(params : JSONVariant) : JSONVariant; override;
       begin
-         var data := '';
-         var status := HttpQuery.GetData('https://aviationweather.gov/api/data/metar?ids=' + URLEncodedEncoder.Encode(params.station_id), data);
+         var dataMetar, dataStation : String;
+         var stationParam := URLEncodedEncoder.Encode(params.station_id);
+         var status := HttpQuery.GetData('https://aviationweather.gov/api/data/metar?ids=' + stationParam, dataMetar);
+         case status of
+            200 : begin
+               // prefix with station name to allow the model to correct hallucinations
+               HttpQuery.GetData('https://aviationweather.gov/api/data/stationinfo?ids=' + stationParam, dataStation);
+               dataMetar := JSON.Parse(dataStation)[0].site + #10 + dataMetar;
+            end;
+            204 : begin
+               // used for no data by the API, which in our case means invalid station  id
+               dataMetar := 'Invalid station ' + stationParam;
+            end;
+         else
+            dataMetar := 'Request failed with status ' + status.ToString;
+         end;
          Result := JSON.Serialize(record
             content := [
                record
                   'type' := 'text';
-                  text :=
-                     if status = 200 then data
-                     else 'Request ' + JSON.Stringify(params) + ' failed with status ' + status.ToString + ': ' + data;
+                  text := dataMetar;
                end
             ];
             isError := False;

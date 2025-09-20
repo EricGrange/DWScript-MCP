@@ -1,7 +1,9 @@
 ﻿<?pas
 // Model Context Protocol server for local time service
 
-uses System.Net, Networking.MCP;
+uses
+   System.Net, System.Encoding,
+   Networking.MCP;
 
 type
    TCurrentTimeTool = class (TMCPTool)
@@ -32,7 +34,49 @@ type
       end;
    end;
 
+type
+   TMETARTool = class (TMCPTool)
+      class function Description : String; override;
+      begin
+         Result := 'Get a METAR from a station ID';
+      end;
+      class function InputSchema : JSONVariant; override;
+      begin
+         Result := JSON.Serialize(
+            record
+               'type' := 'object';
+               properties := record
+                  station_id := record
+                     'type' := 'string';
+                     "description" := "ICAO code for the weather station (e.g., LFPG, KJFK)";
+                  end;
+               end;
+               required := [ "station_id" ];
+            end
+         );
+      end;
+      class function Call(params : JSONVariant) : JSONVariant; override;
+      begin
+         var data := '';
+         var status := HttpQuery.GetData('https://aviationweather.gov/api/data/metar?ids=' + URLEncodedEncoder.Encode(params.station_id), data);
+         Result := JSON.Serialize(record
+            content := [
+               record
+                  'type' := 'text';
+                  text :=
+                     if status = 200 then data
+                     else 'Request ' + JSON.Stringify(params) + ' failed with status ' + status.ToString + ': ' + data;
+               end
+            ];
+            isError := False;
+         end);
+      end;
+   end;
+
+// https://aviationweather.gov/api/data/metar?ids=LFLY
+
 MCPServer.RegisterTool('get_local_time', TCurrentTimeTool);
+MCPServer.RegisterTool('get_metar', TMETARTool);
 
 MCPServer.ProcessWebRequest;
 ?>

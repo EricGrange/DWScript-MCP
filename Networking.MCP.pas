@@ -93,7 +93,7 @@ begin
 
    Result := JSONRPC.CreateSuccess(
       requestId,
-      tool.Call(params)
+      tool.Call(params.arguments)
    );
 end;
 

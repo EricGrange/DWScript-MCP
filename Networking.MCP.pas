@@ -9,6 +9,8 @@ type
       class function Description : String; virtual; abstract;
       class function InputSchema : JSONVariant; virtual; abstract;
       class function Call(params : JSONVariant) : JSONVariant; virtual; abstract;
+      
+      class function CreateError(const message : String) : JSONVariant;
    end;
    TMCPToolClass = class of TMCPTool;
 
@@ -32,6 +34,21 @@ type
    end;
 
 implementation
+
+// CreateError
+//
+class function TMCPTool.CreateError(const message : String) : JSONVariant;
+begin
+   Result := JSON.Serialize(record
+      content := [
+         record
+            'type' := 'text';
+            text := 'Error: ' + message;
+         end
+      ];
+      isError := True;
+   end);
+end;
 
 // RegisterTool
 //

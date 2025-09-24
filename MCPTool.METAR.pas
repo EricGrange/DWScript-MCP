@@ -1,0 +1,75 @@
+(*
+  MCP Tool: METAR
+  
+  This unit implements a tool that retrieves METAR weather information for a given station.
+
+  Sample response:
+
+  {
+    "content": [
+      {
+        "type": "text",
+        "text": "PARIS-CHARLES DE GAULLE\nLFPG 231130Z 24010KT 210V270 9999 FEW030 18/11 Q1022 NOSIG"
+      }
+    ],
+    "isError": false
+  }
+*)
+
+unit MCPTool.METAR;
+
+uses
+   System.Net, System.Encoding,
+   Networking.MCP;
+
+type
+   TMETARTool = class (TMCPTool)
+      class function Description : String; override;
+      begin
+         Result := 'Get a METAR from a station ID';
+      end;
+      class function InputSchema : JSONVariant; override;
+      begin
+         Result := JSON.Serialize(
+            record
+               'type' := 'object';
+               properties := record
+                  station_id := record
+                     'type' := 'string';
+                     "description" := "ICAO code for the weather station (e.g., LFPG, KJFK)";
+                  end;
+               end;
+               required := [ "station_id" ];
+            end
+         );
+      end;
+      class function Call(params : JSONVariant) : JSONVariant; override;
+      begin
+         var dataMetar, dataStation : String;
+         var stationParam := URLEncodedEncoder.Encode(params.station_id);
+         var status := HttpQuery.GetData('https://aviationweather.gov/api/data/metar?ids=' + stationParam, dataMetar);
+         case status of
+            200 : begin
+               // prefix with station name to allow the model to correct hallucinations
+               HttpQuery.GetData('https://aviationweather.gov/api/data/stationinfo?ids=' + stationParam, dataStation);
+               dataMetar := JSON.Parse(dataStation)[0].site + #10 + dataMetar;
+            end;
+            204 : begin
+               // used for no data by the API, which in our case means invalid station  id
+               dataMetar := 'Invalid station ' + stationParam;
+            end;
+         else
+            dataMetar := 'Request failed with status ' + status.ToString;
+         end;
+         Result := JSON.Serialize(record
+            content := [
+               record
+                  'type' := 'text';
+                  text := dataMetar;
+               end
+            ];
+            isError := False;
+         end);
+      end;
+   end;
+
